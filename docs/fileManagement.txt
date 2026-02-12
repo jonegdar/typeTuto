@@ -1,0 +1,46 @@
+typeTuto/
+│
+├── docs/
+│   └── fileManagement.txt
+│
+├── pom.xml
+│
+├── src/
+│   └── main/
+│       ├── java/
+│       │   └── typeTutor/
+│       │       │
+│       │       ├── app/
+│       │       │   └── App.java
+│       │       │
+│       │       ├── controller/
+│       │       │   └── MainController.java
+│       │       │
+│       │       ├── model/
+│       │       │   ├── GameSession.java
+│       │       │   ├── TypingStats.java
+│       │       │   └── TextGenerator.java
+│       │       │
+│       │       ├── view/
+│       │       │   ├── MainFrame.java
+│       │       │   ├── TypingPanel.java
+│       │       │   ├── NavbarPanel.java
+│       │       │   └── HeaderPanel.java
+│       │       │
+│       │       └── util/
+│       │           ├── Theme.java
+│       │           └── Constants.java
+│       │
+│       └── resources/
+│           ├── icons/
+│           ├── fonts/
+│           ├── audio/
+│           └── text/
+│               ├── words/
+│               │   ├── english_1k.json
+│               │   └── filipino.json
+│               └── quotes/
+│                   ├── english.json
+│                   └── filipino.json
+│
+└── README.md
