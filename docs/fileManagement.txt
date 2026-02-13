@@ -24,8 +24,10 @@ typeTuto/
 │       │       └── view/
 │       │           ├── MainFrame.java
 │       │           ├── TypingPanel.java
-│       │           ├── NavbarPanel.java
-│       │           └── HeaderPanel.java
+│       │           ├── NavsPanel.java
+│       │           ├── AppFonts.java
+│       │           ├── GameStats.java
+│       │           └── HeadingsPanel.java
 │       │       
 │       │
 │       └── resources/
