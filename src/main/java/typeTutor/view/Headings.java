@@ -9,8 +9,13 @@ import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
+/**
+ * Static header view with app title and subtitle.
+ */
 public class Headings extends JPanel {
-
+    /**
+     * Builds centered heading labels.
+     */
     public Headings() {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(new Color(31, 31, 31));

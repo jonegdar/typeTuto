@@ -18,41 +18,49 @@ import java.util.List;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
-import javax.swing.Timer;
 
-import typeTutor.model.GameSession;
-import typeTutor.model.TypingStats;
-
+/**
+ * Typing view. This class does not contain game rules.
+ * It only renders state and forwards user input to the controller.
+ */
 public class TypingPanel extends JPanel {
-    private static final int ROW_COUNT = 3;
-    private static final int DEFAULT_STATE = 0;
-    private static final int CORRECT_STATE = 1;
-    private static final int WRONG_STATE = 2;
+    // Row count and color states for rendering typed characters.
+    public static final int ROW_COUNT = 3;
+    public static final int DEFAULT_STATE = 0;
+    public static final int CORRECT_STATE = 1;
+    public static final int WRONG_STATE = 2;
 
+    // Timer label and row containers for typing text.
     private final JLabel timerLabel;
     private final JPanel wordRowsContainer;
     private final JLabel[] rowLabels;
 
-    private final GameSession gameSession;
-    private final Timer uiTimer;
-    private StatsUpdateListener statsUpdateListener;
-
+    // Current render model pushed by the controller.
     private List<String> currentRows;
     private String currentTargetText;
     private char[] shownChars;
     private int[] charStates;
+    private int cursorIndex;
+    private boolean gameRunning;
 
-    public interface StatsUpdateListener {
-        void onStatsUpdated(TypingStats stats);
+    // Callback interface used by controller for key/click events.
+    public interface InputListener {
+        void onCharacterTyped(char value);
+        void onBackspace();
+        void onTypingAreaFocused();
     }
 
+    // Listener assigned by controller.
+    private InputListener inputListener;
+
+    /**
+     * Builds typing UI components and event wiring.
+     */
     public TypingPanel() {
         setBackground(new Color(31, 31, 31));
         setLayout(null);
         setFocusable(true);
         setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
-
-        gameSession = new GameSession();
 
         timerLabel = new JLabel("", SwingConstants.CENTER);
         timerLabel.setForeground(new Color(255, 192, 90));
@@ -73,42 +81,71 @@ public class TypingPanel extends JPanel {
             wordRowsContainer.add(row);
         }
 
+        // Initial empty render model until controller provides first session state.
+        currentRows = new ArrayList<>();
+        currentTargetText = "";
+        shownChars = new char[0];
+        charStates = new int[0];
+        cursorIndex = 0;
+        gameRunning = true;
+
         setupInputHandlers();
-        loadCurrentTripletFromSession();
-        updateTimerLabel();
+        setTimerSeconds(60);
+
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
                 layoutPanelContent();
             }
         });
-
-        uiTimer = new Timer(100, e -> {
-            updateTimerLabel();
-            if (!gameSession.isGameRunning()) {
-                ((Timer) e.getSource()).stop();
-                finishSessionAndReset();
-            }
-        });
     }
 
-    public void setStatsUpdateListener(StatsUpdateListener listener) {
-        this.statsUpdateListener = listener;
+    /**
+     * Assigns controller callback target.
+     */
+    public void setInputListener(InputListener listener) {
+        this.inputListener = listener;
     }
 
-    public void applySessionOptions(String wordMode, String language, String timeMode, boolean crazyModeEnabled) {
-        gameSession.applyNavbarOptions(wordMode, language, timeMode, crazyModeEnabled);
-        loadCurrentTripletFromSession();
-        updateTimerLabel();
-        uiTimer.stop();
+    /**
+     * Updates only the timer text.
+     */
+    public void setTimerSeconds(int seconds) {
+        timerLabel.setText(seconds + "s");
     }
 
+    /**
+     * Applies a full render state from controller and repaints the rows.
+     */
+    public void renderState(List<String> rows, String targetText, char[] visibleChars, int[] states, int cursor, boolean running) {
+        currentRows = new ArrayList<>(rows);
+        currentTargetText = targetText;
+        shownChars = visibleChars.clone();
+        charStates = states.clone();
+        cursorIndex = cursor;
+        gameRunning = running;
+        renderRows();
+    }
+
+    /**
+     * Ensures key events go to this view.
+     */
+    public void focusTypingArea() {
+        requestFocusInWindow();
+        renderRows();
+    }
+
+    /**
+     * Wires click and keyboard forwarding to the assigned controller callback.
+     */
     private void setupInputHandlers() {
         MouseAdapter clickFocus = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                requestFocusInWindow();
-                renderRows();
+                focusTypingArea();
+                if (inputListener != null) {
+                    inputListener.onTypingAreaFocused();
+                }
             }
         };
         addMouseListener(clickFocus);
@@ -132,106 +169,44 @@ public class TypingPanel extends JPanel {
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
-                    handleBackspace();
+                if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE && inputListener != null) {
+                    inputListener.onBackspace();
                     e.consume();
                 }
             }
 
             @Override
             public void keyTyped(KeyEvent e) {
+                if (inputListener == null) {
+                    return;
+                }
                 char typed = e.getKeyChar();
                 if (Character.isISOControl(typed)) {
                     return;
                 }
-                handleTypedCharacter(typed);
+                inputListener.onCharacterTyped(typed);
                 e.consume();
             }
         });
     }
 
-    private void handleTypedCharacter(char typed) {
-        GameSession.InputResult result = gameSession.processTypedCharacter(typed);
-        if (result.isGameStopped()) {
-            uiTimer.stop();
-            finishSessionAndReset();
-            return;
-        }
-
-        if (!uiTimer.isRunning()) {
-            uiTimer.start();
-        }
-
-        if (result.isTripletAdvanced()) {
-            loadCurrentTripletFromSession();
-            updateTimerLabel();
-            return;
-        }
-
-        int index = result.getIndex();
-        if (index >= 0 && index < shownChars.length) {
-            shownChars[index] = result.getTypedChar();
-            charStates[index] = result.isCorrect() ? CORRECT_STATE : WRONG_STATE;
-        }
-
-        updateTimerLabel();
-        renderRows();
-
-        if (!gameSession.isGameRunning()) {
-            uiTimer.stop();
-            finishSessionAndReset();
-        }
-    }
-
-    private void handleBackspace() {
-        GameSession.InputResult result = gameSession.processBackspace();
-        if (result.isGameStopped()) {
-            uiTimer.stop();
-            return;
-        }
-
-        int index = result.getIndex();
-        if (index >= 0 && index < shownChars.length) {
-            shownChars[index] = currentTargetText.charAt(index);
-            charStates[index] = DEFAULT_STATE;
-        }
-
-        renderRows();
-    }
-
-    private void loadCurrentTripletFromSession() {
-        List<String> sourceRows = gameSession.getCurrentTripletRows();
-        currentRows = new ArrayList<>(ROW_COUNT);
-        for (int i = 0; i < ROW_COUNT; i++) {
-            String rowText = i < sourceRows.size() ? sourceRows.get(i) : "";
-            currentRows.add(rowText);
-        }
-
-        currentTargetText = gameSession.getCurrentTargetText();
-        shownChars = currentTargetText.toCharArray();
-        charStates = new int[currentTargetText.length()];
-        renderRows();
-    }
-
-    private void updateTimerLabel() {
-        timerLabel.setText(gameSession.getRemainingSeconds() + "s");
-    }
-
+    /**
+     * Renders the three rows with caret and per-character colors.
+     */
     private void renderRows() {
         int[] rowStarts = computeRowStarts(currentRows);
-        int cursor = gameSession.getCursorIndex();
-        boolean showCaret = isFocusOwner() && gameSession.isGameRunning();
+        boolean showCaret = isFocusOwner() && gameRunning;
 
         for (int rowIndex = 0; rowIndex < ROW_COUNT; rowIndex++) {
-            String rowText = currentRows.get(rowIndex);
-            int rowStart = rowStarts[rowIndex];
+            String rowText = rowIndex < currentRows.size() ? currentRows.get(rowIndex) : "";
+            int rowStart = rowIndex < rowStarts.length ? rowStarts[rowIndex] : 0;
             int rowLength = rowText.length();
 
             StringBuilder html = new StringBuilder("<html><div style='text-align:center;'>");
 
             for (int localIndex = 0; localIndex < rowLength; localIndex++) {
                 int globalIndex = rowStart + localIndex;
-                if (showCaret && cursor == globalIndex) {
+                if (showCaret && cursorIndex == globalIndex) {
                     html.append("<span style='color:#ffc05a;'>|</span>");
                 }
 
@@ -242,11 +217,11 @@ public class TypingPanel extends JPanel {
                         .append("</span>");
             }
 
-            if (showCaret && cursor == rowStart + rowLength) {
+            if (showCaret && cursorIndex == rowStart + rowLength) {
                 html.append("<span style='color:#ffc05a;'>|</span>");
             }
 
-            if (rowLength == 0 && showCaret && cursor == rowStart) {
+            if (rowLength == 0 && showCaret && cursorIndex == rowStart) {
                 html.append("<span style='color:#ffc05a;'>|</span>");
             }
 
@@ -255,12 +230,16 @@ public class TypingPanel extends JPanel {
         }
     }
 
+    /**
+     * Converts row text lengths to global start indexes.
+     */
     private int[] computeRowStarts(List<String> rows) {
         int[] starts = new int[ROW_COUNT];
         int running = 0;
         for (int i = 0; i < ROW_COUNT; i++) {
             starts[i] = running;
-            running += rows.get(i).length();
+            String row = i < rows.size() ? rows.get(i) : "";
+            running += row.length();
             if (i < ROW_COUNT - 1) {
                 running += 1;
             }
@@ -268,6 +247,9 @@ public class TypingPanel extends JPanel {
         return starts;
     }
 
+    /**
+     * Maps state value to display color.
+     */
     private String colorForState(int globalIndex) {
         if (globalIndex < 0 || globalIndex >= charStates.length) {
             return "#9b9b9b";
@@ -280,6 +262,9 @@ public class TypingPanel extends JPanel {
         };
     }
 
+    /**
+     * Escapes special characters for HTML JLabel rendering.
+     */
     private String escapeHtml(char value) {
         if (value == '<') {
             return "&lt;";
@@ -296,10 +281,12 @@ public class TypingPanel extends JPanel {
         return Character.toString(value);
     }
 
+    /**
+     * Resizes timer and row region according to panel size.
+     */
     public void layoutPanelContent() {
         int width = getWidth();
         int height = getHeight();
-
         if (width <= 0 || height <= 0) {
             return;
         }
@@ -313,18 +300,5 @@ public class TypingPanel extends JPanel {
         int rowsY = timerHeight + Math.round(height * 0.05f);
 
         wordRowsContainer.setBounds(rowsX, rowsY, rowsWidth, rowsHeight);
-    }
-
-    private void notifyStatsUpdated() {
-        if (statsUpdateListener != null) {
-            statsUpdateListener.onStatsUpdated(gameSession.getTypingStats());
-        }
-    }
-
-    private void finishSessionAndReset() {
-        notifyStatsUpdated();
-        gameSession.resetForCurrentOptions();
-        loadCurrentTripletFromSession();
-        updateTimerLabel();
     }
 }

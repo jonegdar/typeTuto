@@ -6,39 +6,44 @@ import java.awt.event.ComponentEvent;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
+/**
+ * Main window for the application.
+ * This view only owns layout and component composition.
+ */
 public class MainFrame extends JFrame {
-    private Headings headerPanel;
-    private NavsPanel navPanel;
-    private TypingPanel typingPanel;
-    private GameStatsPanel statsPanel;
+    // Top heading view, mode selector view, typing view, and bottom stats view.
+    private final Headings headerPanel;
+    private final NavsPanel navPanel;
+    private final TypingPanel typingPanel;
+    private final GameStatsPanel statsPanel;
 
+    /**
+     * Builds the frame and all child views.
+     */
     public MainFrame() {
-        initializeFrame();
-        initializeComponents();
-        layoutComponents();
-    }
-
-    private void initializeFrame() {
-        setTitle("TypeTuto");
-        setSize(1200, 648);
-        setLocationRelativeTo(null); // center
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(null);
-    }
-
-    private void initializeComponents() {
         headerPanel = new Headings();
         navPanel = new NavsPanel();
         typingPanel = new TypingPanel();
         statsPanel = new GameStatsPanel();
 
-        navPanel.setModeChangeListener((wordMode, language, timeMode, crazyModeEnabled) -> {
-            typingPanel.applySessionOptions(wordMode, language, timeMode, crazyModeEnabled);
-            statsPanel.showWaitingState();
-        });
-        typingPanel.setStatsUpdateListener(stats -> statsPanel.updateStats(stats));
+        initializeFrame();
+        layoutComponents();
     }
 
+    /**
+     * Configures frame-level settings.
+     */
+    private void initializeFrame() {
+        setTitle("TypeTuto");
+        setSize(1200, 648);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(null);
+    }
+
+    /**
+     * Adds child views and keeps percentage layout responsive.
+     */
     private void layoutComponents() {
         add(headerPanel);
         add(navPanel);
@@ -55,10 +60,13 @@ public class MainFrame extends JFrame {
         SwingUtilities.invokeLater(this::layoutByPercentages);
     }
 
+    /**
+     * Applies fixed vertical proportions:
+     * heading 20%, nav 10%, typing 50%, stats 20%.
+     */
     private void layoutByPercentages() {
         int width = getContentPane().getWidth();
         int height = getContentPane().getHeight();
-
         if (width <= 0 || height <= 0) {
             return;
         }
@@ -79,5 +87,26 @@ public class MainFrame extends JFrame {
         currentY += typingHeight;
 
         statsPanel.setBounds(0, currentY, width, statsHeight);
+    }
+
+    /**
+     * Exposes nav view for controller binding.
+     */
+    public NavsPanel getNavPanel() {
+        return navPanel;
+    }
+
+    /**
+     * Exposes typing view for controller binding.
+     */
+    public TypingPanel getTypingPanel() {
+        return typingPanel;
+    }
+
+    /**
+     * Exposes stats view for controller binding.
+     */
+    public GameStatsPanel getStatsPanel() {
+        return statsPanel;
     }
 }

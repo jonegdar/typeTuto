@@ -9,13 +9,21 @@ import javax.swing.SwingConstants;
 
 import typeTutor.model.TypingStats;
 
+/**
+ * Bottom stats view that renders final metrics after each finished game.
+ */
 public class GameStatsPanel extends JPanel {
+    // Shared colors for panel and text styling.
     private static final Color BG = new Color(24, 24, 24);
     private static final Color TEXT = new Color(235, 235, 235);
     private static final Color ACCENT = new Color(255, 192, 90);
 
+    // Single rich-text label that shows all metrics in one line.
     private final JLabel statsLabel;
 
+    /**
+     * Builds stats panel UI.
+     */
     public GameStatsPanel() {
         setLayout(null);
         setBackground(BG);
@@ -28,6 +36,9 @@ public class GameStatsPanel extends JPanel {
         showWaitingState();
     }
 
+    /**
+     * Renders final game stats and computed rank score.
+     */
     public void updateStats(TypingStats stats) {
         int correct = stats.getCorrectCharacters();
         int wrong = stats.getWrongCharacters();
@@ -53,6 +64,9 @@ public class GameStatsPanel extends JPanel {
         statsLabel.setText(text);
     }
 
+    /**
+     * Shows placeholder state while a game has not yet ended.
+     */
     public void showWaitingState() {
         String text = String.format(
                 "<html><span style='color:%s;'>WPM:</span> -&nbsp;&nbsp;&nbsp;&nbsp;" +
@@ -65,6 +79,9 @@ public class GameStatsPanel extends JPanel {
         statsLabel.setText(text);
     }
 
+    /**
+     * Maps WPM to provided percentile table.
+     */
     private double percentileForWpm(double wpm) {
         if (wpm < 25) {
             return 0.02;
@@ -87,6 +104,9 @@ public class GameStatsPanel extends JPanel {
         return 42.86;
     }
 
+    /**
+     * Maps combined score to rank label.
+     */
     private String rankForPercentile(double percentile) {
         if (percentile < 16.0) {
             return "asleep";
@@ -109,10 +129,16 @@ public class GameStatsPanel extends JPanel {
         return "legend";
     }
 
+    /**
+     * Converts Color to hex string for inline HTML styles.
+     */
     private String toHex(Color color) {
         return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
 
+    /**
+     * Positions the single label to fill panel width with side padding.
+     */
     @Override
     public void doLayout() {
         statsLabel.setBounds(20, 0, getWidth() - 40, getHeight());

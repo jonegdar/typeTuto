@@ -5,58 +5,63 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.net.URL;
 
 import javax.swing.BorderFactory;
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
-import javax.swing.SwingConstants;
-import javax.swing.UIManager;
 import javax.swing.border.AbstractBorder;
 
+/**
+ * Navbar view that exposes word/language/time selections.
+ * The controller listens to mode changes via callback.
+ */
 public class NavsPanel extends JPanel {
+    /**
+     * Callback contract for mode changes.
+     */
     public interface ModeChangeListener {
-        void onModeChanged(String wordMode, String language, String timeMode, boolean crazyModeEnabled);
+        void onModeChanged(String wordMode, String language, String timeMode);
     }
 
+    // Style constants for active/inactive mode appearance.
     private static final int CORNER_RADIUS = 10;
     private static final Color ACTIVE_COLOR = new Color(255, 192, 90);
     private static final Color INACTIVE_COLOR = Color.WHITE;
 
+    // Main row and grouped nav containers.
     private final JPanel navRow;
     private final JPanel wordModeNav;
     private final JPanel languageNav;
     private final JPanel timeModeNav;
-    private final JPanel crazyModeNav;
 
+    // Word mode buttons.
     private final JButton wordsButton;
     private final JButton numbersButton;
     private final JButton quotesButton;
 
+    // Language buttons.
     private final JButton engButton;
     private final JButton filButton;
 
+    // Time mode buttons.
     private final JButton time120Button;
     private final JButton time60Button;
     private final JButton time30Button;
     private final JButton time15Button;
 
-    private final JButton crazyButton;
-
+    // Current selected modes and listener.
     private String selectedWordMode = "Words";
     private String selectedLanguage = "Eng";
     private String selectedTimeMode = "60s";
-    private boolean crazyModeEnabled = false;
-
     private ModeChangeListener modeChangeListener;
 
+    /**
+     * Builds nav groups, action handlers, and responsive bounds behavior.
+     */
     public NavsPanel() {
         setBackground(new Color(31, 31, 31));
         setLayout(null);
@@ -97,17 +102,9 @@ public class NavsPanel extends JPanel {
         timeModeNav.add(time30Button);
         timeModeNav.add(time15Button);
 
-        crazyModeNav = createNavbarPanel();
-        crazyButton = createBorderlessButton("");
-        crazyButton.setIcon(loadCrazyModeIcon());
-        crazyButton.setHorizontalAlignment(SwingConstants.CENTER);
-        crazyButton.addActionListener(e -> onCrazyModeToggled());
-        crazyModeNav.add(crazyButton);
-
         navRow.add(wordModeNav);
         navRow.add(languageNav);
         navRow.add(timeModeNav);
-        navRow.add(crazyModeNav);
         add(navRow);
 
         addComponentListener(new ComponentAdapter() {
@@ -121,11 +118,17 @@ public class NavsPanel extends JPanel {
         layoutNavRow();
     }
 
+    /**
+     * Assigns external listener and emits current initial mode state.
+     */
     public void setModeChangeListener(ModeChangeListener listener) {
         this.modeChangeListener = listener;
         notifyModeChanged();
     }
 
+    /**
+     * Handles word mode click.
+     */
     private void onWordModeSelected(String mode) {
         if (!selectedWordMode.equals(mode)) {
             selectedWordMode = mode;
@@ -134,6 +137,9 @@ public class NavsPanel extends JPanel {
         }
     }
 
+    /**
+     * Handles language mode click.
+     */
     private void onLanguageSelected(String language) {
         if (!selectedLanguage.equals(language)) {
             selectedLanguage = language;
@@ -142,6 +148,9 @@ public class NavsPanel extends JPanel {
         }
     }
 
+    /**
+     * Handles time mode click.
+     */
     private void onTimeModeSelected(String timeMode) {
         if (!selectedTimeMode.equals(timeMode)) {
             selectedTimeMode = timeMode;
@@ -150,18 +159,18 @@ public class NavsPanel extends JPanel {
         }
     }
 
-    private void onCrazyModeToggled() {
-        crazyModeEnabled = !crazyModeEnabled;
-        updateHighlighting();
-        notifyModeChanged();
-    }
-
+    /**
+     * Emits active modes to controller.
+     */
     private void notifyModeChanged() {
         if (modeChangeListener != null) {
-            modeChangeListener.onModeChanged(selectedWordMode, selectedLanguage, selectedTimeMode, crazyModeEnabled);
+            modeChangeListener.onModeChanged(selectedWordMode, selectedLanguage, selectedTimeMode);
         }
     }
 
+    /**
+     * Colors active buttons yellow and inactive buttons white.
+     */
     private void updateHighlighting() {
         setButtonColor(wordsButton, selectedWordMode.equals("Words"));
         setButtonColor(numbersButton, selectedWordMode.equals("Numbers"));
@@ -174,14 +183,18 @@ public class NavsPanel extends JPanel {
         setButtonColor(time60Button, selectedTimeMode.equals("60s"));
         setButtonColor(time30Button, selectedTimeMode.equals("30s"));
         setButtonColor(time15Button, selectedTimeMode.equals("15s"));
-
-        applyRoundedPanelBorder(crazyModeNav, crazyModeEnabled ? ACTIVE_COLOR : INACTIVE_COLOR);
     }
 
+    /**
+     * Applies foreground color to button by active state.
+     */
     private void setButtonColor(JButton button, boolean active) {
         button.setForeground(active ? ACTIVE_COLOR : INACTIVE_COLOR);
     }
 
+    /**
+     * Creates one rounded group panel.
+     */
     private JPanel createNavbarPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         panel.setOpaque(false);
@@ -189,12 +202,18 @@ public class NavsPanel extends JPanel {
         return panel;
     }
 
+    /**
+     * Applies rounded outline to panel.
+     */
     private void applyRoundedPanelBorder(JPanel panel, Color color) {
         panel.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedBorder(color, 1, CORNER_RADIUS),
                 BorderFactory.createEmptyBorder(6, 10, 6, 10)));
     }
 
+    /**
+     * Creates consistent nav mode button style.
+     */
     private JButton createBorderlessButton(String text) {
         JButton button = new JButton(text);
         button.setBorderPainted(false);
@@ -207,6 +226,9 @@ public class NavsPanel extends JPanel {
         return button;
     }
 
+    /**
+     * Keeps nav content centered inside panel with width/height caps.
+     */
     private void layoutNavRow() {
         int panelWidth = getWidth();
         int panelHeight = getHeight();
@@ -223,39 +245,44 @@ public class NavsPanel extends JPanel {
         navRow.repaint();
     }
 
-    private Icon loadCrazyModeIcon() {
-        URL iconUrl = getClass().getResource("/icons/crazyMode.png");
-        if (iconUrl == null) {
-            return UIManager.getIcon("OptionPane.warningIcon");
-        }
-
-        ImageIcon rawIcon = new ImageIcon(iconUrl);
-        Image scaled = rawIcon.getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH);
-        return new ImageIcon(scaled);
-    }
-
+    /**
+     * Custom rounded border used by nav group containers.
+     */
     private static class RoundedBorder extends AbstractBorder {
+        // Border color and geometry values.
         private final Color color;
         private final int thickness;
         private final int radius;
 
+        /**
+         * Stores border properties.
+         */
         RoundedBorder(Color color, int thickness, int radius) {
             this.color = color;
             this.thickness = thickness;
             this.radius = radius;
         }
 
+        /**
+         * Returns border insets for layout calculations.
+         */
         @Override
         public Insets getBorderInsets(java.awt.Component c) {
             return new Insets(thickness, thickness, thickness, thickness);
         }
 
+        /**
+         * Writes border insets into provided object.
+         */
         @Override
         public Insets getBorderInsets(java.awt.Component c, Insets insets) {
             insets.set(thickness, thickness, thickness, thickness);
             return insets;
         }
 
+        /**
+         * Paints anti-aliased rounded border.
+         */
         @Override
         public void paintBorder(java.awt.Component c, Graphics g, int x, int y, int width, int height) {
             Graphics2D g2 = (Graphics2D) g.create();
