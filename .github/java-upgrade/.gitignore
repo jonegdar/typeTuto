@@ -1,0 +1,61 @@
+# =========================
+# Build outputs (Maven/Java)
+# =========================
+target/
+out/
+bin/
+build/
+dist/
+
+# Compiled bytecode
+*.class
+
+# Java crash logs
+hs_err_pid*
+replay_pid*
+
+# =========================
+# Logs and temp files
+# =========================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# =========================
+# IDE/editor files
+# =========================
+.idea/
+*.iml
+*.ipr
+*.iws
+
+.vscode/
+
+# Eclipse/STS
+.classpath
+.project
+.settings/
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# =========================
+# OS-generated files
+# =========================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# =========================
+# Environment/local config
+# =========================
+.env
+.env.*
+

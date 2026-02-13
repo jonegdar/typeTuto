@@ -45,8 +45,12 @@ public class GameStatsPanel extends JPanel {
         int totalTyped = correct + wrong;
 
         double accuracy = totalTyped == 0 ? 0.0 : (correct * 100.0) / totalTyped;
+        // Convert WPM percentile table output (0.02..42.86) into a 0..100 score.
         double wpmPercentile = percentileForWpm(stats.getWpm());
-        double combinedScore = (0.5 * wpmPercentile) + (0.5 * accuracy);
+        double wpmScore = (wpmPercentile / 42.86) * 100.0;
+
+        // Final rank score favors balance: both speed and accuracy must be high.
+        double combinedScore = Math.sqrt(wpmScore * accuracy);
         String rank = rankForPercentile(combinedScore);
 
         String text = String.format(
@@ -105,7 +109,7 @@ public class GameStatsPanel extends JPanel {
     }
 
     /**
-     * Maps combined score to rank label.
+     * Maps final 0..100 score to rank label.
      */
     private String rankForPercentile(double percentile) {
         if (percentile < 16.0) {

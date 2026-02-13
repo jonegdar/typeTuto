@@ -1,8 +1,11 @@
 package typeTutor.view;
 
+import java.awt.Image;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.net.URL;
 
+import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
@@ -39,6 +42,20 @@ public class MainFrame extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(null);
+        setWindowIcon();
+    }
+
+    /**
+     * Loads and applies frame icon from classpath resources.
+     */
+    private void setWindowIcon() {
+        URL iconUrl = getClass().getResource("/icons/logo.png");
+        if (iconUrl == null) {
+            return;
+        }
+
+        Image image = new ImageIcon(iconUrl).getImage();
+        setIconImage(image);
     }
 
     /**
