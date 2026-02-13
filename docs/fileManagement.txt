@@ -21,20 +21,19 @@ typeTuto/
 │       │       │   ├── TypingStats.java
 │       │       │   └── TextGenerator.java
 │       │       │
-│       │       ├── view/
-│       │       │   ├── MainFrame.java
-│       │       │   ├── TypingPanel.java
-│       │       │   ├── NavbarPanel.java
-│       │       │   └── HeaderPanel.java
-│       │       │
-│       │       └── util/
-│       │           ├── Theme.java
-│       │           └── Constants.java
+│       │       └── view/
+│       │           ├── MainFrame.java
+│       │           ├── TypingPanel.java
+│       │           ├── NavbarPanel.java
+│       │           └── HeaderPanel.java
+│       │       
 │       │
 │       └── resources/
 │           ├── icons/
+│               ├── logo.png
 │           ├── fonts/
-│           ├── audio/
+│               ├── JetBrainsMono-VariableFont_wght.ttf
+│               ├── MontSerrat-VariableFont_wght.ttf
 │           └── text/
 │               ├── words/
 │               │   ├── english_1k.json
