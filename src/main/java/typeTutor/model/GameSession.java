@@ -5,11 +5,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
+import javax.swing.Timer;
+
 /**
  * Core game model.
  * Contains typing rules, timer lifecycle, triplet progression, and raw counters.
  */
 public class GameSession {
+    private static final int STATE_DEFAULT = 0;
+    private static final int STATE_CORRECT = 1;
+    private static final int STATE_WRONG = 2;
     // Default mode values used for initial app launch.
     public static final String DEFAULT_WORD_MODE = "Words";
     public static final String DEFAULT_LANGUAGE = "Eng";
@@ -26,19 +31,30 @@ public class GameSession {
     // Timer/runtime state flags and base duration.
     private boolean gameRunning;
     private boolean timerStarted;
-    private long startTimeNanos;
+    private boolean timerPaused;
     private int totalSeconds;
+    private int remainingSeconds;
+    private final Timer sessionTimer;
 
-    // Generated triplet session data and current triplet index.
-    private List<List<String>> generatedTriplets;
-    private int tripletIndex;
+    // Generated line stream and current active line index.
+    private List<String> generatedLines;
+    private int currentLineIndex;
 
-    // Active flattened target text and typed progress counters.
+    // Quotes mode state: one quote distributed across 3 rows.
+    private List<String> quotePool;
+    private int quoteIndex;
+    private List<String> quoteRows;
+
+    // Active target text and typed progress counters.
     private String currentTargetText;
     private final List<CharacterState> typedCharacters;
     private int cursorIndex;
     private int correctCharacters;
     private int wrongCharacters;
+    private int completedWords;
+    private int completedLines;
+    private char[] lastCompletedTypedChars;
+    private int[] lastCompletedCharStates;
 
     /**
      * Creates session with default modes and generated content.
@@ -48,8 +64,11 @@ public class GameSession {
         this.wordMode = DEFAULT_WORD_MODE;
         this.language = DEFAULT_LANGUAGE;
         this.timeMode = DEFAULT_TIME_MODE;
+        this.sessionTimer = new Timer(1000, e -> onSessionTimerTick());
 
-        this.generatedTriplets = Collections.emptyList();
+        this.generatedLines = Collections.emptyList();
+        this.quotePool = Collections.emptyList();
+        this.quoteRows = List.of("", "", "");
         this.typedCharacters = new ArrayList<>();
         resetForCurrentOptions();
     }
@@ -111,32 +130,45 @@ public class GameSession {
      */
     public void resetForCurrentOptions() {
         this.totalSeconds = parseTimeModeSeconds(timeMode);
-        this.generatedTriplets = textGenerator.generateTriplets(wordMode, language, totalSeconds);
-        this.tripletIndex = 0;
-        this.currentTargetText = joinTripletRows(getCurrentTripletRows());
+        List<String> flattened = flattenTriplets(textGenerator.generateTriplets(wordMode, language, totalSeconds));
+        boolean quotesMode = isQuotesMode();
+        if (quotesMode) {
+            this.quotePool = flattened;
+            this.quoteIndex = 0;
+            setNextQuoteFromPool();
+            this.generatedLines = Collections.emptyList();
+            this.currentLineIndex = 0;
+        } else {
+            this.generatedLines = flattened;
+            this.currentLineIndex = 0;
+            this.quotePool = Collections.emptyList();
+            this.quoteIndex = 0;
+            this.quoteRows = List.of("", "", "");
+            ensureLineBuffer();
+            this.currentTargetText = getActiveLine();
+        }
+        this.lastCompletedTypedChars = null;
+        this.lastCompletedCharStates = null;
 
         this.gameRunning = true;
         this.timerStarted = false;
-        this.startTimeNanos = 0L;
+        this.timerPaused = false;
+        this.remainingSeconds = totalSeconds;
+        this.sessionTimer.stop();
 
         this.typedCharacters.clear();
         this.cursorIndex = 0;
         this.correctCharacters = 0;
         this.wrongCharacters = 0;
+        this.completedWords = 0;
+        this.completedLines = 0;
     }
 
     /**
      * Returns remaining countdown seconds.
      */
     public int getRemainingSeconds() {
-        if (!timerStarted) {
-            return totalSeconds;
-        }
-
-        long elapsedNanos = System.nanoTime() - startTimeNanos;
-        int elapsedSeconds = (int) (elapsedNanos / 1_000_000_000L);
-        int remaining = totalSeconds - elapsedSeconds;
-        return Math.max(remaining, 0);
+        return Math.max(remainingSeconds, 0);
     }
 
     /**
@@ -157,10 +189,22 @@ public class GameSession {
      * Returns current 3-row triplet from generated session data.
      */
     public List<String> getCurrentTripletRows() {
-        if (generatedTriplets.isEmpty() || tripletIndex >= generatedTriplets.size()) {
+        if (isQuotesMode()) {
+            return new ArrayList<>(quoteRows);
+        }
+
+        ensureLineBuffer();
+        if (generatedLines.isEmpty() || currentLineIndex >= generatedLines.size()) {
             return Collections.emptyList();
         }
-        return generatedTriplets.get(tripletIndex);
+
+        String active = getActiveLine();
+        String next = getNextLine();
+        List<String> rows = new ArrayList<>(3);
+        rows.add("");
+        rows.add(active);
+        rows.add(next);
+        return rows;
     }
 
     /**
@@ -168,6 +212,20 @@ public class GameSession {
      */
     public String getCurrentTargetText() {
         return currentTargetText;
+    }
+
+    /**
+     * Returns the last completed line's typed characters for rendering.
+     */
+    public char[] getLastCompletedTypedChars() {
+        return lastCompletedTypedChars == null ? null : lastCompletedTypedChars.clone();
+    }
+
+    /**
+     * Returns the last completed line's per-character states for rendering.
+     */
+    public int[] getLastCompletedCharStates() {
+        return lastCompletedCharStates == null ? null : lastCompletedCharStates.clone();
     }
 
     /**
@@ -192,6 +250,20 @@ public class GameSession {
     }
 
     /**
+     * Returns number of completed words.
+     */
+    public int getCompletedWords() {
+        return completedWords;
+    }
+
+    /**
+     * Returns number of completed lines.
+     */
+    public int getCompletedLines() {
+        return completedLines;
+    }
+
+    /**
      * Applies one typed character according to game rules.
      */
     public InputResult processTypedCharacter(char typedChar) {
@@ -201,14 +273,13 @@ public class GameSession {
 
         if (!timerStarted) {
             timerStarted = true;
-            startTimeNanos = System.nanoTime();
+            timerPaused = false;
+            sessionTimer.start();
         }
 
-        if (cursorIndex >= currentTargetText.length()) {
-            if (!moveToNextTriplet()) {
-                gameRunning = false;
-                return InputResult.gameStopped();
-            }
+        if (currentTargetText.isEmpty()) {
+            gameRunning = false;
+            return InputResult.gameStopped();
         }
 
         char expectedChar = currentTargetText.charAt(cursorIndex);
@@ -225,10 +296,9 @@ public class GameSession {
 
         boolean advancedTriplet = false;
         if (cursorIndex >= currentTargetText.length()) {
-            advancedTriplet = moveToNextTriplet();
-            if (!advancedTriplet) {
-                gameRunning = false;
-            }
+            advancedTriplet = isQuotesMode()
+                    ? registerCompletedQuoteAndAdvance()
+                    : registerCompletedLineAndAdvance();
         }
 
         return new InputResult(previousIndex, typedChar, expectedChar, correct, false, false, advancedTriplet);
@@ -256,7 +326,41 @@ public class GameSession {
      * Produces immutable stats snapshot for UI.
      */
     public TypingStats getTypingStats() {
-        return new TypingStats(calculateWpm(), correctCharacters, wrongCharacters);
+        return new TypingStats(
+                calculateWpm(),
+                correctCharacters,
+                wrongCharacters,
+                completedWords,
+                completedLines,
+                timeMode,
+                language,
+                wordMode);
+    }
+
+    /**
+     * Pauses the active countdown without resetting progress.
+     */
+    public void pauseTimer() {
+        if (!timerStarted || timerPaused || !gameRunning) {
+            return;
+        }
+
+        timerPaused = true;
+        sessionTimer.stop();
+    }
+
+    /**
+     * Resumes a previously paused countdown.
+     */
+    public void resumeTimer() {
+        if (!timerPaused) {
+            return;
+        }
+
+        timerPaused = false;
+        if (gameRunning && remainingSeconds > 0) {
+            sessionTimer.start();
+        }
     }
 
     /**
@@ -277,25 +381,129 @@ public class GameSession {
     }
 
     /**
-     * Moves to next triplet when available.
+     * Converts generated triplets into one linear list of rows.
      */
-    private boolean moveToNextTriplet() {
-        if (tripletIndex + 1 >= generatedTriplets.size()) {
+    private List<String> flattenTriplets(List<List<String>> triplets) {
+        List<String> lines = new ArrayList<>();
+        for (List<String> triplet : triplets) {
+            lines.addAll(triplet);
+        }
+        return lines;
+    }
+
+    /**
+     * Appends more generated lines when the visible window is about to run out.
+     */
+    private void ensureLineBuffer() {
+        int requiredIndex = currentLineIndex + 1;
+        while (requiredIndex >= generatedLines.size()) {
+            generatedLines.addAll(flattenTriplets(textGenerator.generateTriplets(wordMode, language, totalSeconds)));
+        }
+    }
+
+    /**
+     * Returns the currently active line.
+     */
+    private String getActiveLine() {
+        if (generatedLines.isEmpty() || currentLineIndex >= generatedLines.size()) {
+            return "";
+        }
+        return generatedLines.get(currentLineIndex);
+    }
+
+    /**
+     * Returns the next line below the active line.
+     */
+    private String getNextLine() {
+        int index = currentLineIndex + 1;
+        if (generatedLines.isEmpty() || index < 0 || index >= generatedLines.size()) {
+            return "";
+        }
+        return generatedLines.get(index);
+    }
+
+    /**
+     * Registers a completed line and shifts the active line window upward by one.
+     */
+    private boolean registerCompletedLineAndAdvance() {
+        String completedLineText = getActiveLine();
+        if (completedLineText == null) {
             return false;
         }
 
-        tripletIndex++;
-        currentTargetText = joinTripletRows(getCurrentTripletRows());
+        completedLines++;
+        completedWords += countWords(completedLineText);
+        captureCompletedLineSnapshot(completedLineText);
+
+        currentLineIndex += 1;
+        ensureLineBuffer();
+        currentTargetText = getActiveLine();
         typedCharacters.clear();
         cursorIndex = 0;
         return true;
     }
 
-    /**
-     * Joins 3 row strings into one flat target stream separated by spaces.
-     */
+    private boolean registerCompletedQuoteAndAdvance() {
+        // Count the whole quote as 3 visible rows worth of progress.
+        String quoteText = String.join(" ", quoteRows).trim();
+        completedWords += countWords(quoteText);
+        completedLines += 3;
+        lastCompletedTypedChars = null;
+        lastCompletedCharStates = null;
+
+        quoteIndex += 1;
+        setNextQuoteFromPool();
+        typedCharacters.clear();
+        cursorIndex = 0;
+        return true;
+    }
+
+    private void setNextQuoteFromPool() {
+        if (quotePool == null || quotePool.isEmpty()) {
+            quotePool = flattenTriplets(textGenerator.generateTriplets(wordMode, language, totalSeconds));
+            quoteIndex = 0;
+        }
+
+        if (quoteIndex >= quotePool.size()) {
+            quotePool = flattenTriplets(textGenerator.generateTriplets(wordMode, language, totalSeconds));
+            quoteIndex = 0;
+        }
+
+        String quote = quotePool.get(quoteIndex);
+        quoteRows = splitQuoteIntoRows(quote);
+        currentTargetText = joinTripletRows(quoteRows);
+    }
+
+    private List<String> splitQuoteIntoRows(String quote) {
+        if (quote == null || quote.isBlank()) {
+            return List.of("", "", "");
+        }
+
+        String[] words = quote.trim().split("\\s+");
+        StringBuilder r1 = new StringBuilder();
+        StringBuilder r2 = new StringBuilder();
+        StringBuilder r3 = new StringBuilder();
+
+        int totalLen = quote.length();
+        int target = Math.max(20, totalLen / 3);
+        int which = 0;
+        for (String w : words) {
+            StringBuilder row = which == 0 ? r1 : which == 1 ? r2 : r3;
+            if (row.length() > 0) {
+                row.append(' ');
+            }
+            row.append(w);
+
+            if (which < 2 && row.length() >= target) {
+                which++;
+            }
+        }
+
+        return List.of(r1.toString(), r2.toString(), r3.toString());
+    }
+
     private String joinTripletRows(List<String> rows) {
-        if (rows.isEmpty()) {
+        if (rows == null || rows.isEmpty()) {
             return "";
         }
 
@@ -307,6 +515,60 @@ public class GameSession {
             builder.append(rows.get(i));
         }
         return builder.toString();
+    }
+
+    private void captureCompletedLineSnapshot(String completedLineText) {
+        if (isQuotesMode()) {
+            lastCompletedTypedChars = null;
+            lastCompletedCharStates = null;
+            return;
+        }
+
+        int length = completedLineText.length();
+        if (typedCharacters.size() < length) {
+            // Defensive: if something is off, render the expected line in default gray.
+            lastCompletedTypedChars = completedLineText.toCharArray();
+            lastCompletedCharStates = new int[length];
+            return;
+        }
+
+        lastCompletedTypedChars = new char[length];
+        lastCompletedCharStates = new int[length];
+        for (int i = 0; i < length; i++) {
+            CharacterState state = typedCharacters.get(i);
+            lastCompletedTypedChars[i] = state.typed;
+            lastCompletedCharStates[i] = state.correct ? STATE_CORRECT : STATE_WRONG;
+        }
+    }
+
+    /**
+     * Counts whitespace-separated words in one completed line.
+     */
+    private int countWords(String line) {
+        if (line == null || line.isBlank()) {
+            return 0;
+        }
+        return line.trim().split("\\s+").length;
+    }
+
+    public boolean isQuotesMode() {
+        return "Quotes".equalsIgnoreCase(wordMode);
+    }
+
+    /**
+     * Advances the countdown by one second.
+     */
+    private void onSessionTimerTick() {
+        if (!gameRunning || timerPaused) {
+            sessionTimer.stop();
+            return;
+        }
+
+        remainingSeconds = Math.max(remainingSeconds - 1, 0);
+        if (remainingSeconds <= 0) {
+            gameRunning = false;
+            sessionTimer.stop();
+        }
     }
 
     /**

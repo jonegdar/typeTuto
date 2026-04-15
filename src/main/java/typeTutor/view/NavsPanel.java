@@ -6,12 +6,15 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.net.URL;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import javax.swing.border.AbstractBorder;
 
@@ -19,7 +22,7 @@ import javax.swing.border.AbstractBorder;
  * Navbar view that exposes word/language/time selections.
  * The controller listens to mode changes via callback.
  */
-public class NavsPanel extends JPanel {
+public class NavsPanel extends JPanel implements MainFrame.SupportsAlpha {
     /**
      * Callback contract for mode changes.
      */
@@ -52,12 +55,19 @@ public class NavsPanel extends JPanel {
     private final JButton time60Button;
     private final JButton time30Button;
     private final JButton time15Button;
+    private final JPanel utilityNav;
+    private final JButton historyButton;
+    private final JButton infoButton;
+    private Runnable onHistory;
+    private Runnable onInfo;
+
 
     // Current selected modes and listener.
     private String selectedWordMode = "Words";
     private String selectedLanguage = "Eng";
     private String selectedTimeMode = "60s";
     private ModeChangeListener modeChangeListener;
+    private float alpha = 1f;
 
     /**
      * Builds nav groups, action handlers, and responsive bounds behavior.
@@ -102,9 +112,26 @@ public class NavsPanel extends JPanel {
         timeModeNav.add(time30Button);
         timeModeNav.add(time15Button);
 
+        utilityNav = createNavbarPanel();
+        historyButton = createIconButton("/icons/history.png", "History");
+        infoButton = createIconButton("/icons/info.png", "Scoring info");
+        historyButton.addActionListener(e -> {
+            if (onHistory != null) {
+                onHistory.run();
+            }
+        });
+        infoButton.addActionListener(e -> {
+            if (onInfo != null) {
+                onInfo.run();
+            }
+        });
+        utilityNav.add(historyButton);
+        utilityNav.add(infoButton);
+
         navRow.add(wordModeNav);
         navRow.add(languageNav);
         navRow.add(timeModeNav);
+        navRow.add(utilityNav);
         add(navRow);
 
         addComponentListener(new ComponentAdapter() {
@@ -124,6 +151,11 @@ public class NavsPanel extends JPanel {
     public void setModeChangeListener(ModeChangeListener listener) {
         this.modeChangeListener = listener;
         notifyModeChanged();
+    }
+
+    public void setUtilityActions(Runnable onHistory, Runnable onInfo) {
+        this.onHistory = onHistory;
+        this.onInfo = onInfo;
     }
 
     /**
@@ -208,7 +240,7 @@ public class NavsPanel extends JPanel {
     private void applyRoundedPanelBorder(JPanel panel, Color color) {
         panel.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedBorder(color, 1, CORNER_RADIUS),
-                BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+                BorderFactory.createEmptyBorder(3, 10, 3, 10)));
     }
 
     /**
@@ -226,6 +258,28 @@ public class NavsPanel extends JPanel {
         return button;
     }
 
+    private JButton createIconButton(String resourcePath, String tooltip) {
+        JButton button = new JButton();
+        button.setToolTipText(tooltip);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setContentAreaFilled(false);
+        button.setOpaque(false);
+        button.setMargin(new Insets(2, 6, 2, 6));
+        button.setIcon(loadScaledIcon(resourcePath, 18, 18));
+        return button;
+    }
+
+    private ImageIcon loadScaledIcon(String resourcePath, int width, int height) {
+        URL iconUrl = getClass().getResource(resourcePath);
+        if (iconUrl == null) {
+            return null;
+        }
+        Image image = new ImageIcon(iconUrl).getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+        return new ImageIcon(image);
+    }
+
+
     /**
      * Keeps nav content centered inside panel with width/height caps.
      */
@@ -236,13 +290,33 @@ public class NavsPanel extends JPanel {
             return;
         }
 
-        int rowHeight = Math.round(panelHeight * 0.80f);
+        int rowHeight = Math.round(panelHeight * 0.58f);
         int rowWidth = Math.round(panelWidth * 0.85f);
         int x = (panelWidth - rowWidth) / 2;
-        int y = (panelHeight - rowHeight) / 2;
+        int y = (panelHeight - rowHeight) / 2 + 10;
         navRow.setBounds(x, y, rowWidth, rowHeight);
         navRow.revalidate();
         navRow.repaint();
+    }
+
+    /**
+     * Updates panel opacity for distraction-free mode.
+     */
+    @Override
+    public void setAlpha(float alpha) {
+        this.alpha = Math.max(0f, Math.min(alpha, 1f));
+        repaint();
+    }
+
+    /**
+     * Paints child components with configurable alpha.
+     */
+    @Override
+    protected void paintChildren(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setComposite(java.awt.AlphaComposite.SrcOver.derive(alpha));
+        super.paintChildren(g2);
+        g2.dispose();
     }
 
     /**

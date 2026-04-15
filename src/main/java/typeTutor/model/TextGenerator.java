@@ -24,6 +24,7 @@ public class TextGenerator {
     private static final String WORDS_FIL_PATH = "/text/words/filipino.json";
     private static final String QUOTES_EN_PATH = "/text/quotes/english.json";
     private static final String QUOTES_FIL_PATH = "/text/quotes/filipino.json";
+    private static final int QUOTE_MAX_CHARS = 200;
 
     // Shared randomness and JSON mapper.
     private final Random random;
@@ -209,12 +210,19 @@ public class TextGenerator {
             }
 
             List<String> values = new ArrayList<>(payload.quotes.size());
+            List<String> allValues = new ArrayList<>(payload.quotes.size());
             for (Quote quote : payload.quotes) {
                 if (quote != null && quote.text != null && !quote.text.isBlank()) {
-                    values.add(quote.text.trim());
+                    String text = quote.text.trim();
+                    allValues.add(text);
+                    if (text.length() <= QUOTE_MAX_CHARS) {
+                        values.add(text);
+                    }
                 }
             }
-            return values;
+
+            // If everything was filtered out, fall back to the raw set.
+            return values.isEmpty() ? allValues : values;
         } catch (IOException e) {
             throw new IllegalStateException("Failed to read quotes file: " + path, e);
         }

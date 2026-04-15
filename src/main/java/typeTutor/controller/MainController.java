@@ -6,6 +6,7 @@ import java.util.List;
 import javax.swing.Timer;
 
 import typeTutor.model.GameSession;
+import typeTutor.model.SessionHistoryTracker;
 import typeTutor.model.TypingStats;
 import typeTutor.view.GameStatsPanel;
 import typeTutor.view.MainFrame;
@@ -17,14 +18,18 @@ import typeTutor.view.TypingPanel;
  * Owns all interaction logic between model and views.
  */
 public class MainController {
+    private static final int DISTRACTION_FREE_TRIGGER_CHARACTERS = 1;
+
     // References to the views that render data and emit UI events.
     private final MainFrame mainFrame;
     private final TypingPanel typingPanel;
     private final NavsPanel navsPanel;
     private final GameStatsPanel statsPanel;
+    private final InactivityController inactivityController;
 
     // Core model for game rules and progress.
     private final GameSession gameSession;
+    private final SessionHistoryTracker historyTracker;
 
     // Timer used to refresh countdown independently from key presses.
     private final Timer countdownTimer;
@@ -44,6 +49,11 @@ public class MainController {
         this.navsPanel = mainFrame.getNavPanel();
         this.statsPanel = mainFrame.getStatsPanel();
         this.gameSession = new GameSession();
+        this.historyTracker = new SessionHistoryTracker();
+        this.inactivityController = new InactivityController(
+                mainFrame,
+                this::pauseForLock,
+                this::resumeAfterUnlock);
 
         this.currentRows = new ArrayList<>();
         this.currentTargetText = "";
@@ -55,6 +65,8 @@ public class MainController {
         loadCurrentTripletFromSession();
         typingPanel.setTimerSeconds(gameSession.getRemainingSeconds());
         statsPanel.showWaitingState();
+        mainFrame.setDistractionFreeMode(false);
+        mainFrame.setSessionHistoryEntries(historyTracker.getEntries());
     }
 
     /**
@@ -83,7 +95,14 @@ public class MainController {
 
             @Override
             public void onTypingAreaFocused() {
+                inactivityController.recordActivity();
                 typingPanel.focusTypingArea();
+            }
+
+            @Override
+            public void onRestartRequested() {
+                inactivityController.recordActivity();
+                finishSessionAndReset();
             }
         });
     }
@@ -92,7 +111,9 @@ public class MainController {
      * Handles navbar mode changes and restarts session using selected options.
      */
     private void onModesChanged(String wordMode, String language, String timeMode) {
+        inactivityController.recordActivity();
         countdownTimer.stop();
+        mainFrame.setDistractionFreeMode(false);
         gameSession.applyNavbarOptions(wordMode, language, timeMode);
         loadCurrentTripletFromSession();
         typingPanel.setTimerSeconds(gameSession.getRemainingSeconds());
@@ -104,6 +125,11 @@ public class MainController {
      * Handles typed characters and advances game state.
      */
     private void onCharacterTypedByUser(char typedChar) {
+        if (inactivityController.isLocked()) {
+            return;
+        }
+
+        inactivityController.recordActivity();
         GameSession.InputResult result = gameSession.processTypedCharacter(typedChar);
         if (result.isGameStopped()) {
             finishSessionAndReset();
@@ -112,6 +138,9 @@ public class MainController {
 
         if (!countdownTimer.isRunning()) {
             countdownTimer.start();
+        }
+        if (gameSession.getCorrectCharacters() + gameSession.getWrongCharacters() >= DISTRACTION_FREE_TRIGGER_CHARACTERS) {
+            mainFrame.setDistractionFreeMode(true);
         }
 
         if (result.isTripletAdvanced()) {
@@ -137,6 +166,11 @@ public class MainController {
      * Handles backspace and restores previous source character in rendered text.
      */
     private void onBackspacePressed() {
+        if (inactivityController.isLocked()) {
+            return;
+        }
+
+        inactivityController.recordActivity();
         GameSession.InputResult result = gameSession.processBackspace();
         if (result.isGameStopped()) {
             return;
@@ -169,10 +203,35 @@ public class MainController {
         countdownTimer.stop();
         TypingStats finalStats = gameSession.getTypingStats();
         statsPanel.updateStats(finalStats);
+        historyTracker.recordSession(finalStats);
+        mainFrame.setSessionHistoryEntries(historyTracker.getEntries());
+        mainFrame.setDistractionFreeMode(false);
+        if (gameSession.getRemainingSeconds() <= 0) {
+            mainFrame.showTypingStatsDialog(finalStats);
+        }
 
         gameSession.resetForCurrentOptions();
         loadCurrentTripletFromSession();
         typingPanel.setTimerSeconds(gameSession.getRemainingSeconds());
+        typingPanel.focusTypingArea();
+    }
+
+    /**
+     * Pauses active timers while the lock screen is shown.
+     */
+    private void pauseForLock() {
+        countdownTimer.stop();
+        gameSession.pauseTimer();
+    }
+
+    /**
+     * Resumes timing and focus after a successful unlock.
+     */
+    private void resumeAfterUnlock() {
+        gameSession.resumeTimer();
+        if (gameSession.isGameRunning()) {
+            countdownTimer.start();
+        }
         typingPanel.focusTypingArea();
     }
 
@@ -202,7 +261,10 @@ public class MainController {
                 visibleChars,
                 stateByChar,
                 gameSession.getCursorIndex(),
-                gameSession.isGameRunning());
+                gameSession.isGameRunning(),
+                gameSession.getLastCompletedTypedChars(),
+                gameSession.getLastCompletedCharStates(),
+                gameSession.isQuotesMode());
         typingPanel.setTimerSeconds(gameSession.getRemainingSeconds());
     }
 }
