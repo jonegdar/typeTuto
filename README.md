@@ -127,10 +127,10 @@ typeTuto/
 │       │       │   └── TextGenerator.java
 │       │       │
 │       │       └── view/
-  │       │           ├── MainFrame.java
-  │       │           ├── TypingPanel.java
-  │       │           ├── NavsPanel.java
-  │       │           └── Headings.java
+│       │           ├── MainFrame.java
+│       │           ├── TypingPanel.java
+│       │           ├── NavsPanel.java
+│       │           └── Headings.java
 │       │
 │       └── resources/
 │           ├── icons/
