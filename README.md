@@ -68,6 +68,8 @@ The goal is simple:
 - 30s
 - 15s
 
+---
+
 ### 3️⃣ Typing Area
 
 #### ⏳ Timer
