@@ -1,15 +1,18 @@
 package typeTutor.view;
 
 import java.awt.Color;
+import java.awt.Desktop;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Image;
 import java.awt.RenderingHints;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 
 import javax.swing.BorderFactory;
@@ -56,6 +59,7 @@ public class NavsPanel extends JPanel implements MainFrame.SupportsAlpha {
     private final JButton time30Button;
     private final JButton time15Button;
     private final JPanel utilityNav;
+    private final JButton githubButton;
     private final JButton historyButton;
     private final JButton infoButton;
     private Runnable onHistory;
@@ -74,10 +78,11 @@ public class NavsPanel extends JPanel implements MainFrame.SupportsAlpha {
      */
     public NavsPanel() {
         setBackground(new Color(31, 31, 31));
-        setLayout(null);
+        setLayout(new GridBagLayout());
 
         navRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 4));
         navRow.setOpaque(false);
+        navRow.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0));
 
         wordModeNav = createNavbarPanel();
         wordsButton = createBorderlessButton("Words");
@@ -112,9 +117,11 @@ public class NavsPanel extends JPanel implements MainFrame.SupportsAlpha {
         timeModeNav.add(time30Button);
         timeModeNav.add(time15Button);
 
-        utilityNav = createNavbarPanel();
+        utilityNav = createUtilityPanel();
+        githubButton = createIconButton("/icons/github.png", "GitHub repository");
         historyButton = createIconButton("/icons/history.png", "History");
         infoButton = createIconButton("/icons/info.png", "Scoring info");
+        githubButton.addActionListener(e -> openRepo());
         historyButton.addActionListener(e -> {
             if (onHistory != null) {
                 onHistory.run();
@@ -125,24 +132,20 @@ public class NavsPanel extends JPanel implements MainFrame.SupportsAlpha {
                 onInfo.run();
             }
         });
+        utilityNav.add(githubButton);
         utilityNav.add(historyButton);
         utilityNav.add(infoButton);
 
         navRow.add(wordModeNav);
         navRow.add(languageNav);
         navRow.add(timeModeNav);
-        navRow.add(utilityNav);
         add(navRow);
 
-        addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                layoutNavRow();
-            }
-        });
-
         updateHighlighting();
-        layoutNavRow();
+    }
+
+    public JPanel getUtilityNav() {
+        return utilityNav;
     }
 
     /**
@@ -234,13 +237,20 @@ public class NavsPanel extends JPanel implements MainFrame.SupportsAlpha {
         return panel;
     }
 
+    private JPanel createUtilityPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createEmptyBorder());
+        return panel;
+    }
+
     /**
      * Applies rounded outline to panel.
      */
     private void applyRoundedPanelBorder(JPanel panel, Color color) {
         panel.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedBorder(color, 1, CORNER_RADIUS),
-                BorderFactory.createEmptyBorder(3, 10, 3, 10)));
+                BorderFactory.createEmptyBorder(6, 10, 6, 10)));
     }
 
     /**
@@ -265,9 +275,29 @@ public class NavsPanel extends JPanel implements MainFrame.SupportsAlpha {
         button.setBorderPainted(false);
         button.setContentAreaFilled(false);
         button.setOpaque(false);
-        button.setMargin(new Insets(2, 6, 2, 6));
-        button.setIcon(loadScaledIcon(resourcePath, 18, 18));
+        button.setMargin(new Insets(1, 3, 1, 3));
+        ImageIcon icon = loadScaledIcon(resourcePath, 14, 14);
+        if (icon != null) {
+            button.setIcon(icon);
+        } else {
+            button.setText(tooltip);
+        }
         return button;
+    }
+
+    private void openRepo() {
+        if (!Desktop.isDesktopSupported()) {
+            return;
+        }
+        Desktop desktop = Desktop.getDesktop();
+        if (!desktop.isSupported(Desktop.Action.BROWSE)) {
+            return;
+        }
+        try {
+            desktop.browse(new URI("https://github.com/jonegdar/typeTuto"));
+        } catch (IOException | URISyntaxException ex) {
+            // ignore if unable to open
+        }
     }
 
     private ImageIcon loadScaledIcon(String resourcePath, int width, int height) {
@@ -279,25 +309,6 @@ public class NavsPanel extends JPanel implements MainFrame.SupportsAlpha {
         return new ImageIcon(image);
     }
 
-
-    /**
-     * Keeps nav content centered inside panel with width/height caps.
-     */
-    private void layoutNavRow() {
-        int panelWidth = getWidth();
-        int panelHeight = getHeight();
-        if (panelWidth <= 0 || panelHeight <= 0) {
-            return;
-        }
-
-        int rowHeight = Math.round(panelHeight * 0.58f);
-        int rowWidth = Math.round(panelWidth * 0.85f);
-        int x = (panelWidth - rowWidth) / 2;
-        int y = (panelHeight - rowHeight) / 2 + 10;
-        navRow.setBounds(x, y, rowWidth, rowHeight);
-        navRow.revalidate();
-        navRow.repaint();
-    }
 
     /**
      * Updates panel opacity for distraction-free mode.

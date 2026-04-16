@@ -26,6 +26,7 @@ import javax.swing.JLabel;
 import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 
 /**
  * Typing view. This class does not contain game rules.
@@ -131,6 +132,8 @@ public class TypingPanel extends JPanel {
             }
         });
     }
+
+    
 
     /**
      * Assigns controller callback target.
@@ -383,6 +386,21 @@ public class TypingPanel extends JPanel {
         int buttonX = (width - buttonWidth) / 2;
         int buttonY = rowsY + rowsHeight + 10;
         restartButton.setBounds(buttonX, buttonY, buttonWidth, buttonHeight);
+    }
+
+    /**
+     * Public hook to force rerendering of the typing rows and repaint the panel.
+     * Useful when outer window decorators change size/state and the HTML labels
+     * need an explicit refresh to avoid transient visual glitches.
+     */
+    public void refreshDisplay() {
+        SwingUtilities.invokeLater(() -> {
+            renderRows();
+            wordRowsContainer.revalidate();
+            wordRowsContainer.repaint();
+            revalidate();
+            repaint();
+        });
     }
 
     private ImageIcon loadScaledIcon(String resourcePath, int width, int height) {

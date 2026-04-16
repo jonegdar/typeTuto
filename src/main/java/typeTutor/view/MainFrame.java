@@ -5,6 +5,7 @@ import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -122,6 +123,14 @@ public class MainFrame extends JFrame {
             @Override
             public void componentResized(ComponentEvent e) {
                 applyWindowShape();
+                // ensure layout updates immediately on resize to avoid transient glitches
+                SwingUtilities.invokeLater(() -> {
+                    layoutByPercentages();
+                    // Refresh typing rows to avoid HTML label caching glitches
+                    typingPanel.refreshDisplay();
+                    getLayeredPane().revalidate();
+                    getLayeredPane().repaint();
+                });
             }
         });
         SwingUtilities.invokeLater(this::applyWindowShape);
@@ -151,6 +160,8 @@ public class MainFrame extends JFrame {
         contentPanel.add(navPanel);
         contentPanel.add(typingPanel);
         contentPanel.add(statsPanel);
+        // add utilityNav to the layered pane so it always paints above other content
+        getLayeredPane().add(navPanel.getUtilityNav(), javax.swing.JLayeredPane.PALETTE_LAYER);
 
         closeButton.addActionListener(e -> dispatchEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING)));
         minimizeButton.addActionListener(e -> setState(JFrame.ICONIFIED));
@@ -198,18 +209,30 @@ public class MainFrame extends JFrame {
         int typingHeight = Math.round(usableHeight * 0.60f);
         int statsHeight = usableHeight - headingHeight - navHeight - typingHeight;
 
-        int currentY = 0;
-        currentY += TITLE_BAR_HEIGHT;
+        int currentY = TITLE_BAR_HEIGHT;
         headerPanel.setBounds(0, currentY, width, headingHeight);
         currentY += headingHeight;
 
         navPanel.setBounds(0, currentY, width, navHeight);
         currentY += navHeight;
 
-        typingPanel.setBounds(0, currentY, width, typingHeight);
+        int typingY = currentY;
+        typingPanel.setBounds(0, typingY, width, typingHeight);
         currentY += typingHeight;
 
         statsPanel.setBounds(0, currentY, width, statsHeight);
+
+        Dimension utilitySize = navPanel.getUtilityNav().getPreferredSize();
+        int utilityWidth = utilitySize.width > 0 ? utilitySize.width : 96;
+        int utilityHeight = utilitySize.height > 0 ? utilitySize.height : 28;
+        // Place utility icons directly below the traffic lights (left-aligned)
+        int leftPadding = 16; // same left padding as trafficLights
+        // mirror horizontally: place at same distance from center but on the right
+        int utilityX = width - leftPadding - utilityWidth;
+        int utilityY = TITLE_BAR_HEIGHT + 6; // just below the title bar
+        // set bounds in layered pane coordinates so it appears above all content
+        navPanel.getUtilityNav().setBounds(utilityX, utilityY, utilityWidth, utilityHeight);
+        navPanel.getUtilityNav().setVisible(true);
     }
 
     private void setWindowIcon() {
@@ -222,14 +245,26 @@ public class MainFrame extends JFrame {
     }
 
     private void toggleMaximizeRestore() {
-        if ((getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH) {
+        boolean wasMax = (getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
+        if (wasMax) {
             setExtendedState(JFrame.NORMAL);
-            applyWindowShape();
         } else {
             setExtendedState(JFrame.MAXIMIZED_BOTH);
-            applyWindowShape();
         }
+        // Defer shape + layout updates to let the window system apply new bounds first,
+        // then recalc layout and repaint layered pane to avoid transient glitches.
+        SwingUtilities.invokeLater(() -> {
+            applyWindowShape();
+            layoutByPercentages();
+            // force typing panel refresh to clear any stale HTML render state
+            typingPanel.refreshDisplay();
+            contentPanel.revalidate();
+            contentPanel.repaint();
+            getLayeredPane().revalidate();
+            getLayeredPane().repaint();
+        });
     }
+
 
     public NavsPanel getNavPanel() {
         return navPanel;

@@ -45,3 +45,23 @@ typeTuto/
 │                   └── filipino.json
 │
 └── README.md
+
+OOP AUDIT & CHANGES
+-------------------
+- Reviewed controller, model, and view packages for encapsulation, SRP, and immutability.
+- Changes made:
+	- `TextGenerator` JSON payload inner classes now use private fields with public getters/setters so Jackson binds without exposing mutable public fields.
+	- `TypingStats`, `SessionHistoryTracker.Entry`, and `GameSession.InputResult` remain immutable value objects (final fields, no setters).
+	- `GameSession` keeps all mutable runtime state private and exposes read-only accessors; controller mediates all state changes.
+	- `NavsPanel` and other view classes were kept free of game logic; views only render state and forward user events to the controller.
+- Notes / rationale:
+	- Encapsulation: all model state is private with controlled public getters; no public mutable collections leaked (cloned copies returned where needed).
+	- SRP: Controller (`MainController`) handles interaction logic; `GameSession` handles rules/timing; views render and forward input.
+	- Immutability: snapshot classes used by UI are immutable where appropriate to avoid accidental modification.
+
+If you'd like, I can continue and convert remaining small payload classes to use explicit DTO accessors or introduce interfaces for view contracts.
+
+RECENT UI FIXES
+----------------
+- Added `TypingPanel.refreshDisplay()` to force re-render/repaint of HTML row labels when the window is resized or toggled maximize. This addresses the issue where rows appeared visually stale until clicked.
+- `MainFrame` now calls `typingPanel.refreshDisplay()` after layout updates (resize / maximize toggles) to ensure the typing rows update immediately.

@@ -1,7 +1,21 @@
+## ✨ NEW FEATURES (TypeTuto_v2)
+
+TypeTuto_v2 is the 4th quarter improvement to the original 3rd quarter project.
+
+NEW FEATURES:
+
+1. A new inactivity timer and session check UI (auto-lock & unlock flow)
+2. A new scoring system with a polished game stats panel shown after every session
+3. A session history tracker and an info dialog for the scoring system
+4. Improved UI/UX, including macOS-style window operator buttons and refreshed layout
+5. Polished file management and code structure to follow OOP principles
+
+---
+
 # ⌨️ TypeTutoV2
 
-*A MonkeyType-inspired minimalist typing tutorial built with Java (Swing + Maven).
-Newer and improved logic and UI/UX.*
+_A MonkeyType-inspired minimalist typing tutorial built with Java (Swing + Maven).
+Newer and improved logic and UI/UX._
 
 ---
 
@@ -11,10 +25,10 @@ Newer and improved logic and UI/UX.*
 
 It evaluates (in a better way than before):
 
-* ⚡ Typing Speed (WPM)
-* 🎯 Accuracy
-* ✅ Correct & ❌ Incorrect characters
-* 🏆 Performance Rank
+- ⚡ Typing Speed (WPM)
+- 🎯 Accuracy
+- ✅ Correct & ❌ Incorrect characters
+- 🏆 Performance Rank
 
 The application generates randomized text (words, numbers, or quotes), provides real-time character feedback, and calculates performance metrics after each session (all in a better manner).
 
@@ -28,9 +42,9 @@ The goal is simple:
 
 ### 1️⃣ Header Section
 
-* Application title
-* Instructional subtitle
-* Clean dark minimalist theme
+- Application title
+- Instructional subtitle
+- Clean dark minimalist theme
 
 ---
 
@@ -38,25 +52,25 @@ The goal is simple:
 
 #### Word Mode
 
-* Words
-* Numbers
-* Quotes
+- Words
+- Numbers
+- Quotes
 
 #### Language Mode
 
-* English
-* Filipino
+- English
+- Filipino
 
 #### Time Mode
 
-* 120s
-* 60s
-* 30s
-* 15s
+- 120s
+- 60s
+- 30s
+- 15s
 
 #### Special Mode
 
-* Crazy Mode (variation gameplay behavior)
+- Crazy Mode (variation gameplay behavior)
 
 ---
 
@@ -64,28 +78,30 @@ The goal is simple:
 
 #### ⏳ Timer
 
-* Countdown based on selected time mode
-* Starts automatically on first key press
+- Countdown based on selected time mode
+- Starts automatically on first key press
 
 #### 📝 Text Display
 
-* 3 lines visible at a time
-* 15 words per line
-* Dynamically updates as user progresses
+- 3 lines visible at a time
+- 15 words per line
+- Dynamically updates as user progresses
 
 #### 🎨 Real-Time Character Feedback
 
-* **Grey** → Not yet typed
-* **White** → Correct character
-* **Red** → Incorrect character
+- **Grey** → Not yet typed
+- **White** → Correct character
+- **Red** → Incorrect character
 
 #### 📊 Live Statistics
 
-* WPM
-* Correct count
-* Wrong count
-* Accuracy
-* Rank (computed after session ends)
+- WPM
+- Correct count
+- Wrong count
+- Accuracy
+- Rank (computed after session ends)
+- Game stats panel (detailed scoring) shown after each session
+- Session history available via the history dialog
 
 ---
 
@@ -115,10 +131,10 @@ typeTuto/
 │       │       │   └── TextGenerator.java
 │       │       │
 │       │       └── view/
-│       │           ├── MainFrame.java
-│       │           ├── TypingPanel.java
-│       │           ├── NavbarPanel.java
-│       │           └── HeaderPanel.java
+  │       │           ├── MainFrame.java
+  │       │           ├── TypingPanel.java
+  │       │           ├── NavsPanel.java
+  │       │           └── Headings.java
 │       │
 │       └── resources/
 │           ├── icons/
@@ -155,10 +171,10 @@ Entry point. Launches the Swing UI.
 **MainController.java**
 Handles:
 
-* Mode selection
-* Timer logic
-* Typing input processing
-* Game state transitions
+- Mode selection
+- Timer logic
+- Typing input processing
+- Game state transitions
 
 Acts as the bridge between UI and logic.
 
@@ -168,24 +184,23 @@ Acts as the bridge between UI and logic.
 
 **GameSession.java**
 
-* Stores generated text
-* Tracks typing progress
-* Manages timer state
+- Stores generated text
+- Tracks typing progress
+- Manages timer state
 
 **TypingStats.java**
 
-* Calculates WPM
-* Computes accuracy
-* Tracks correct/incorrect characters
+- Calculates WPM
+- Computes accuracy
+- Tracks correct/incorrect characters
 
 **TextGenerator.java**
 
-* Reads JSON files from `/resources`
-* Generates randomized word sets based on:
-
-  * Word mode
-  * Language
-  * Time mode
+- Reads JSON files from `/resources`
+- Generates randomized word sets based on:
+  - Word mode
+  - Language
+  - Time mode
 
 ---
 
@@ -193,22 +208,23 @@ Acts as the bridge between UI and logic.
 
 **MainFrame.java**
 
-* Main application window
+- Main application window
 
-**HeaderPanel.java**
+**Headings.java**
 
-* Title and subtitle
+- Title and subtitle
 
-**NavbarPanel.java**
+**NavsPanel.java**
 
-* Mode selection controls
+- Mode selection controls
 
 **TypingPanel.java**
 
-* Text rendering
-* Character coloring
-* Timer display
-* Live statistics
+- Text rendering
+- Character coloring
+- Timer display
+- Live statistics
+- Game stats and session history dialogs
 
 ---
 
@@ -216,10 +232,10 @@ Acts as the bridge between UI and logic.
 
 Contains:
 
-* Word banks (JSON)
-* Quotes
-* Fonts
-* Icons
+- Word banks (JSON)
+- Quotes
+- Fonts
+- Icons
 
 All files are loaded using `getResourceAsStream()` for portability.
 
@@ -229,8 +245,8 @@ All files are loaded using `getResourceAsStream()` for portability.
 
 ### Requirements
 
-* JDK 17+ (recommended for stability)
-* Maven 3.9+
+- JDK 17+ (recommended for stability)
+- Maven 3.9+
 
 ---
 
@@ -262,20 +278,18 @@ The JAR file includes all dependencies and runs independently.
 
 ## 🎯 Design Principles
 
-* Minimalist UI
-* Clear separation of concerns (MVC)
-* Portable Maven-based architecture
-* Resource-based file loading
-* Scalable and maintainable structure
+- Minimalist UI
+- Clear separation of concerns (MVC)
+- Portable Maven-based architecture
+- Resource-based file loading
+- Scalable and maintainable structure
 
 ---
 
 ## 🚀 Future Improvements
 
-* Persistent leaderboard system
-* User accounts
-* Difficulty scaling
-* Performance history tracking
-* Sound effects & animations
-* Graph-based performance analytics
-
+- Persistent leaderboard system
+- User accounts
+- Difficulty scaling
+- Sound effects & animations
+- Graph-based performance analytics

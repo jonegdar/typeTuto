@@ -240,7 +240,10 @@ public class TextGenerator {
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class WordPayload {
-        public List<String> words;
+        private List<String> words;
+
+        public List<String> getWords() { return words; }
+        public void setWords(List<String> words) { this.words = words; }
     }
 
     /**
@@ -248,7 +251,10 @@ public class TextGenerator {
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class QuotePayload {
-        public List<Quote> quotes;
+        private List<Quote> quotes;
+
+        public List<Quote> getQuotes() { return quotes; }
+        public void setQuotes(List<Quote> quotes) { this.quotes = quotes; }
     }
 
     /**
@@ -256,6 +262,9 @@ public class TextGenerator {
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class Quote {
-        public String text;
+        private String text;
+
+        public String getText() { return text; }
+        public void setText(String text) { this.text = text; }
     }
 }
