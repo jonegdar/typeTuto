@@ -68,12 +68,6 @@ The goal is simple:
 - 30s
 - 15s
 
-#### Special Mode
-
-- Crazy Mode (variation gameplay behavior)
-
----
-
 ### 3️⃣ Typing Area
 
 #### ⏳ Timer
