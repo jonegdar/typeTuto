@@ -12,7 +12,7 @@ NEW FEATURES:
 
 ---
 
-# ⌨️ TypeTutoV2
+# ⌨️ TypeTuto
 
 _A MonkeyType-inspired minimalist typing tutorial built with Java (Swing + Maven).
 Newer and improved logic and UI/UX._
